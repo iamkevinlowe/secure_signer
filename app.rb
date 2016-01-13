@@ -12,6 +12,12 @@
 # #parameters (the query string/form parameters)
 # #path (the path of the request)
 
+# Tokens
+#access_key
+#secret_key
+
+#Authorization #{access_key}:#{base_64_encoded_signature}
+
 require 'sinatra'
 require 'openssl'
 require 'base64'
@@ -25,19 +31,15 @@ def sign_request(request, secret_token)
   Base64.strict_encode64(signature)
 end
 
-# Tokens
-#access_key
-#secret_key
-
 keys = {
   abcde: "fghij"
 }
 
-#Authorization #{access_key}:#{base_64_encoded_signature}
-
 before do
   pass if request.path == '/' || request.path =='/set_auth_header'
 
+  auth_header = nil
+  
   if env['HTTP_AUTHORIZATION']
     auth_header = env['HTTP_AUTHORIZATION'].split(':')
   else
