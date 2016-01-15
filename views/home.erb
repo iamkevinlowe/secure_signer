@@ -1,7 +1,13 @@
-<form action="/set_auth_header">
-  <input type="submit" value="Authorized">
-</form>
+<head>
+  <script src="http://crypto-js.googlecode.com/svn/tags/3.0.2/build/rollups/hmac-sha256.js"></script>
+  <script src="http://crypto-js.googlecode.com/svn/tags/3.0.2/build/components/enc-base64-min.js"></script>
+  <script src="getPowerballs.js"></script>
+</head>
 
-<form action="/test">
-  <input type="submit" value="Unauthorized">
-</form>
+<body>
+  <input type="button" value="Authorized" onClick="onPowerballsClick('auth')">
+  <input type="button" value="Unauthorized" onClick="onPowerballsClick()">
+
+  <h4>Powerballs</h4>
+  <ul id="powerballs_list"></ul>
+</body>

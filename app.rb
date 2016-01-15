@@ -18,61 +18,86 @@
 
 #Authorization #{access_key}:#{base_64_encoded_signature}
 
-require 'sinatra'
+require 'sinatra/base'
 require 'openssl'
 require 'base64'
+require 'json'
 
 Request = Struct.new :method, :parameters, :path
 
-def sign_request(request, secret_token)
-  string = request.method + request.parameters + request.path
-  digest = OpenSSL::Digest.new('sha256')
-  signature = OpenSSL::HMAC.digest(digest, secret_token, string)
-  Base64.strict_encode64(signature)
-end
-
-keys = {
+Keys = {
   abcde: "fghij"
 }
 
-before do
-  pass if request.path == '/' || request.path =='/set_auth_header'
-
-  auth_header = nil
-  
-  if env['HTTP_AUTHORIZATION']
-    auth_header = env['HTTP_AUTHORIZATION'].split(':')
-  else
-    halt 401
+# Middleware for authorization check
+class SecureAuth
+  def initialize(app)
+    @app = app
   end
 
-  public_key = auth_header[0]
-  signature = auth_header[1]
-  incoming_request = Request.new(request.request_method, request.query_string, request.path)
+  def call(env)
+    if env['HTTP_AUTHORIZATION']
+      auth_header = env['HTTP_AUTHORIZATION'].split(':')
+      public_key = auth_header[0]
+      signature = auth_header[1]
 
-  if sign_request(incoming_request, keys[public_key.to_sym]) == signature
-    pass
-  else
-    halt 401
+      incoming_request = Request.new(env['REQUEST_METHOD'], env['QUERY_STRING'], env['REQUEST_PATH'])
+
+      if sign(incoming_request, Keys[public_key.to_sym]) == signature
+        @app.call(env)
+      else
+        respond_401
+      end
+    else
+      respond_401
+    end
+  end
+
+  private
+
+  def sign(request, secret_token)
+    string = request.method + request.parameters + request.path
+    digest = OpenSSL::Digest.new('sha256')
+    signature = OpenSSL::HMAC.digest(digest, secret_token, string)
+    Base64.strict_encode64(signature)
+  end
+
+  def respond_401
+    status = 401
+    response = ["Unauthorized"]
+    headers = {'Content-Length' => response[0].length.to_s}
+
+    [status, headers, response]
   end
 end
 
-get '/' do
-  erb :home
+# Public app
+class App < Sinatra::Base
+  get '/' do
+    erb :home
+  end
 end
 
-get '/set_auth_header' do
-  outgoing_request = Request.new('GET', '', '/test')
-  signature = sign_request(outgoing_request, keys[:abcde])
-  request.env['authorization'] = "abcde:#{signature}"
-  request.path_info = '/test'
-  pass
-end
+# Secured API
+class SecureApi < Sinatra::Base
+  use SecureAuth
 
-get '/test' do
-  "Success"
-end
+  before do
+    content_type :json
+  end
 
-error 401 do
-  "Authorization Failure"
+  get '/powerballs' do
+    response = {
+      powerballs: []
+    }
+
+    5.times do
+      ball = rand(69) + 1
+      redo if response[:powerballs].include? ball
+      response[:powerballs] << ball
+    end
+    response[:powerballs] << rand(26) + 1
+
+    response.to_json
+  end
 end

@@ -1,2 +1,9 @@
 require './app'
-run Sinatra::Application
+
+map('/') do
+  run App
+end
+
+map('/api') do
+  run SecureApi
+end
